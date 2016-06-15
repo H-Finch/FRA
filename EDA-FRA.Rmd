@@ -6,7 +6,7 @@ output:
 ---
 
 Hi folks.
-
+* Update rmarkdown and evaluate packages.
 Been trying to understand the difference across variables for default classes.
 
 ###Crude Balancing
