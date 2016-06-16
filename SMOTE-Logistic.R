@@ -54,6 +54,7 @@ require(DMwR)
 require(Amelia)
 require(ROCR)
 require(unbalanced)
+library(plyr)
 
 #_________________________________________________
 #
@@ -118,7 +119,7 @@ pie(table(train$SeriousDlqin2yrs))
 # NumberOfDependents      Categorical
 
 ggplot(train, aes(NumberOfDependents,fill=factor(SeriousDlqin2yrs))) +
-geom_bar(position="dodge")+coord_flip()
+  geom_bar(position="dodge")+coord_flip()
 
 #_________________________________________________
 #
@@ -158,10 +159,10 @@ test$SeriousDlqin2yrs <- factor(test$SeriousDlqin2yrs)
 
 
 getmode <- function(v) {
- uniqv <- unique(v)
- uniqv[which.max(tabulate(match(v, uniqv)))]
+  uniqv <- unique(v)
+  uniqv[which.max(tabulate(match(v, uniqv)))]
 }
- 
+
 
 train$NumberOfDependents[is.na(train$NumberOfDependents)] <- getmode(train$NumberOfDependents)
 test$NumberOfDependents[is.na(test$NumberOfDependents)] <- getmode(test$NumberOfDependents)
@@ -170,9 +171,14 @@ train$NumberOfDependents <- as.numeric(train$NumberOfDependents)
 test$NumberOfDependents <- as.numeric(test$NumberOfDependents)
 
 #outlier treatment-Revolving
-subset(train,(train$RevolvingUtilizationOfUnsecuredLines<3))
+train1=subset(train,(train$RevolvingUtilizationOfUnsecuredLines<3))
+str(train1)
+ggplot(train1, aes(x=factor(train1$SeriousDlqin2yrs),y=train1$RevolvingUtilizationOfUnsecuredLines))+geom_boxplot()
 #outlier treatment - Debt ratio
-subset(train,)
+train2=subset(train1,(train1$DebtRatio<=100))
+str(train2)
+p=ggplot(train2,aes(x=factor(train2$SeriousDlqin2yrs),y=train2$DebtRatio))+geom_boxplot()
+(p)
 #_________________________________________________
 #
 # Now check missing values
@@ -235,8 +241,8 @@ sapply(test, function(x) sum(is.na(x)))
 #
 #_________________________________________________
 
-# Remove Loan_ID attribute
-df <- train
+# Remove S.No attribute
+df <- train2
 df <- df[,-1]
 test <- test[,-1]
 
@@ -262,33 +268,35 @@ features <- setdiff(names(df_train), outcome)
 # let's SMOTE on training data set, not on valid, test data sets
 #
 #_________________________________________________
-require(DMwR)
+require(unbalanced)
 
 # 6% of data set is of class 1 and this is minority class.
 prop.table(table(df_train$SeriousDlqin2yrs))
 prop.table(table(df_valid$SeriousDlqin2yrs))
 
 #Before SMOTE
-prop.table(table(train$SeriousDlqin2yrs))
+prop.table(table(train2$SeriousDlqin2yrs))
 
 ggplot(train, aes(NumberOfOpenCreditLinesAndLoans, 
-                     NumberOfDependents)) +
+                  NumberOfDependents)) +
   geom_jitter(aes(colour=factor(SeriousDlqin2yrs)))+
   scale_colour_brewer(palette = "Paired")
 
 
-# SMOTE
-df_train <- SMOTE(SeriousDlqin2yrs~.,
-                  df_train,
-                  perc.over = 100,  # give us 100% oversample
-                  perc.under = 200)       # give twice the class 1
+# unbalanced
+input=df_train[2:5]
+output=df_train$SeriousDlqin2yrs
+train_ub <- ubOver(X=input,Y=output)
+newdf_train=cbind(train_ub$X,train_ub$Y)  
+names(newdf_train)[names(newdf_train)=="train_ub$Y"]="SeriousDlqin2yrs"
 
 
-ggplot(df_train, aes(NumberOfOpenCreditLinesAndLoans, 
-                  NumberOfDependents)) +
+ggplot(newdf_train, aes(NumberOfOpenCreditLinesAndLoans, 
+                     NumberOfDependents)) +
   geom_jitter(aes(colour=factor(SeriousDlqin2yrs)), width=10)+
   scale_colour_brewer(palette = "Paired")
 
+df_train=newdf_train
 
 prop.table(table(df_train$SeriousDlqin2yrs))
 dim(df_train)
