@@ -21,7 +21,7 @@
 # Arun Sundar
 # Arun Venkatesan
 # Rajagopalan Kannan
-# Vijay Somnath
+# Vijay Somanath
 #
 #_________________________________________________
 
@@ -53,13 +53,14 @@ require(DMwR)
 #require(xgboost)
 require(Amelia)
 require(ROCR)
+require(unbalanced)
 
 #_________________________________________________
 #
 # Read files
 #
 #_________________________________________________
-setwd('c:/r/data/csv/')
+#setwd('c:/r/data/csv/')
 train <- read.csv('fra_train.csv', header=TRUE)
 test <- read.csv('fra_test.csv', header=TRUE)
 
@@ -90,34 +91,6 @@ missmap(test, col=c('red', 'white'), legend=FALSE, y.cex=0.3,
 sapply(train, function(x) sum(is.na(x)))
 sapply(test, function(x) sum(is.na(x)))
 
-
-#_________________________________________________
-#
-# Let's do some exploratory
-#
-#_________________________________________________
-source('helper.R')
-hgraph(train[,-1])
-hgraph(test[,-1])
-
-# Casenum                 Identifier
-# SeriousDlqin2yrs        Categorical - outcome variable
-# RevolvingUtilizationOfUnsecuredLines  Continuous (Skewed)
-# DebtRatio               Continuous (Skewed)
-# NumberOfOpenCreditLinesAndLoans Continuous (Skewed)
-# NumberOfDependents      Categorical
-
-ggplot(train, aes(NumberOfOpenCreditLinesAndLoans, 
-                  NumberOfDependents)) +
-   geom_jitter(aes(colour=factor(SeriousDlqin2yrs)))
-
-
-#_________________________________________________
-#
-# Check for unbalanced classes
-#
-#_________________________________________________
-
 # train we can see that ~94% of the classes are of '0' and 6% are '1'
 (a <- table(train$SeriousDlqin2yrs))
 prop.table(table(train$SeriousDlqin2yrs))
@@ -128,16 +101,38 @@ prop.table(table(test$SeriousDlqin2yrs))
 pie(table(train$SeriousDlqin2yrs))
 
 
-# let's check it visually
+#_________________________________________________
+#
+# Let's do some exploratory
+#
+#_________________________________________________
+# source('helper.R')
+# hgraph(train[,-1])
+# hgraph(test[,-1])
 
-ggplot(train, aes( DebtRatio,
-                   NumberOfDependents)) +
-  geom_jitter(aes(colour=factor(SeriousDlqin2yrs)), width=0.2)
+# Casenum                 Identifier
+# SeriousDlqin2yrs        Categorical - outcome variable
+# RevolvingUtilizationOfUnsecuredLines  Continuous (Skewed)
+# DebtRatio               Continuous (Skewed)
+# NumberOfOpenCreditLinesAndLoans Continuous (Skewed)
+# NumberOfDependents      Categorical
 
-ggplot(train, aes( NumberOfOpenCreditLinesAndLoans,
-                   NumberOfDependents)) +
-  geom_jitter(aes(colour=factor(SeriousDlqin2yrs)), width=0.2)
+ggplot(train, aes(NumberOfDependents,fill=factor(SeriousDlqin2yrs))) +
+geom_bar(position="dodge")+coord_flip()
 
+#_________________________________________________
+#
+# Check for unbalanced classes
+#
+#_________________________________________________
+
+
+
+# Debt ratio & Revolving utilization of unsecured loans
+
+ggplot(train,aes(x=factor(train$SeriousDlqin2yrs),y=DebtRatio))+geom_boxplot()
+
+ggplot(train, aes(x=factor(train$SeriousDlqin2yrs),y=train$RevolvingUtilizationOfUnsecuredLines))+geom_boxplot()
 
 
 #_________________________________________________
@@ -154,13 +149,6 @@ test$SeriousDlqin2yrs <- factor(test$SeriousDlqin2yrs)
 #test$NumberOfDependents <- factor(test$NumberOfDependents)
 
 
-
-
-#_________________________________________________
-#
-# Let's do imputation based on the above insights
-#
-#_________________________________________________
 
 #_________________________________________________
 #
@@ -181,6 +169,10 @@ test$NumberOfDependents[is.na(test$NumberOfDependents)] <- getmode(test$NumberOf
 train$NumberOfDependents <- as.numeric(train$NumberOfDependents)
 test$NumberOfDependents <- as.numeric(test$NumberOfDependents)
 
+#outlier treatment-Revolving
+subset(train,(train$RevolvingUtilizationOfUnsecuredLines<3))
+#outlier treatment - Debt ratio
+subset(train,)
 #_________________________________________________
 #
 # Now check missing values
@@ -371,3 +363,4 @@ detach('package:ROCR')
 #_________________________________________________
 rm(list=ls())
 gc()
+
