@@ -88,7 +88,6 @@ ggplot(train,aes(x=factor(train$SeriousDlqin2yrs),y=DebtRatio))+geom_boxplot()
 ggplot(train, aes(x=factor(train$SeriousDlqin2yrs),y=train$RevolvingUtilizationOfUnsecuredLines))+geom_boxplot()
 
 # Data Pre-Processing
-
 train$SeriousDlqin2yrs <- factor(train$SeriousDlqin2yrs)# predictors must be numeric for roc function
 test$SeriousDlqin2yrs <- factor(test$SeriousDlqin2yrs)
 
@@ -96,7 +95,6 @@ test$SeriousDlqin2yrs <- factor(test$SeriousDlqin2yrs)
 #test$NumberOfDependents <- factor(test$NumberOfDependents)
 
 # Mode Imputation
-
 getmode <- function(v) {
   uniqv <- unique(v)
   uniqv[which.max(tabulate(match(v, uniqv)))]
@@ -194,7 +192,7 @@ fit <- glm(SeriousDlqin2yrs~.,
            family = 'binomial')
 
 
-#______________training sample accuracy
+#training sample accuracy
 y_pred <- predict(fit, df_train, type='response')
 y_pred <- floor(y_pred+0.5)
 df_train$ypred <- y_pred
@@ -204,7 +202,7 @@ with(df_train, table(ypred, SeriousDlqin2yrs))
 
 auc(df_train$SeriousDlqin2yrs, df_train$ypred)
 
-#______________validation sample accuracy
+#validation sample accuracy
 y_pred <- predict(fit, df_valid, type='response')
 y_pred <- floor(y_pred+0.5)
 df_valid$ypred <- y_pred
@@ -214,7 +212,7 @@ with(df_valid, table(ypred, SeriousDlqin2yrs))
 
 auc(df_valid$SeriousDlqin2yrs, df_valid$ypred)
 
-#______________Test sample accuracy
+#Test sample accuracy
 y_pred <- predict(fit, test, type='response')
 y_pred <- floor(y_pred+0.5)
 test$ypred <- y_pred
@@ -225,11 +223,7 @@ with(test, table(ypred, SeriousDlqin2yrs))
 auc(test$SeriousDlqin2yrs, test$ypred)
 
 
-#_________________________________________________
-#
 # unload packages
-#
-#_________________________________________________
 detach('package:caret')
 detach('package:plyr')
 detach('package:Hmisc')
@@ -245,11 +239,7 @@ detach('package:ggplot2')
 detach('package:ROCR')
 
 
-#_________________________________________________
-#
 #  Clean up
-#
-#_________________________________________________
 rm(list=ls())
 gc()
 
