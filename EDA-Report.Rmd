@@ -1,0 +1,151 @@
+---
+title: "FRA - Default Modeling in R"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    theme: readable
+    code_folding: hide
+---
+##Instructions  for the Assignment
+You are provided data on loan defaults. Your objective is to build default prediction models using R. You would be evaluated on the following tasks:
+
+* Cleaning of data
+* Handling unbalanced data
+* Building model(s) on training data 
+  + How many models? More the merrier 
+* Evaluating model performance using test data 
+
+##Submission Details
+|**Team Members**  
+|------------------
+|Arun Sundar       
+|Arun Venkatesan   
+|Rajagopalan Kannan
+|Vijay Somanath    
+
+##Data Exploration
+To start with, the training & test datasets are checked for missing values.
+
+```{r, echo=TRUE, message=FALSE, warning=FALSE,plotly=TRUE,cache=FALSE, fig.align='center',results='markup'}
+#  Clean up & package-loading
+rm(list=ls())
+gc=gc(verbose=FALSE)
+
+# Load packages
+require(caret)
+require(plyr)
+#require(Hmisc)
+require(pROC)
+require(DMwR)
+#require(missForest)
+#require(mi)
+#require(mice)
+#require(car)
+#require(xgboost)
+require(Amelia)
+require(ROCR)
+require(unbalanced)
+require(plotly)
+
+# Read files
+#setwd('c:/r/data/csv/')
+train <- read.csv('fra_train.csv', header=TRUE)
+test <- read.csv('fra_test.csv', header=TRUE)
+```
+
+###Dataset Dimensions
+The training dataset has 5000 records for 6 attributes, while the test dataset has 1000 datasets for 6 attributes.
+```{r, echo=TRUE, message=FALSE, warning=FALSE,plotly=TRUE,cache=FALSE, fig.align='center',results='markup'}
+# Study the data set
+dim(train)
+dim(test)
+```
+
+###Missing Values
+Only one variable contains missing values: <code>NumberOfDependants</code>.
+```{r, echo=TRUE, message=FALSE, warning=FALSE,plotly=TRUE,cache=FALSE, fig.align='center',results='markup'}
+# Check missing values
+missmap(train, col=c('red', 'white'), legend=FALSE, y.cex=0.3,
+        main='training data set - missingness map')
+missmap(test, col=c('red', 'white'), legend=FALSE, y.cex=0.3,
+        main='test data set - missingness map')
+```
+
+The number of missing values for the variable is observed to be quite less.
+```{r, echo=TRUE, message=FALSE, warning=FALSE,plotly=TRUE,cache=FALSE, fig.align='center',results='markup'}
+# number of missing values by attributes
+sapply(train, function(x) sum(is.na(x)))
+sapply(test, function(x) sum(is.na(x)))
+
+
+
+```
+
+
+###Data Visualization
+
+From preliminary analysis, it is seen that the training dataset is imbalanced in favor of <code>Did Not Default</code>. 
+
+```{r, echo=TRUE, message=FALSE, warning=FALSE,plotly=TRUE,cache=FALSE, fig.align='center',results='markup'}
+(a <- table(train$SeriousDlqin2yrs))
+prop.table(table(train$SeriousDlqin2yrs))
+
+(b <- table(test$SeriousDlqin2yrs))
+prop.table(table(test$SeriousDlqin2yrs))
+
+pie(table(train$SeriousDlqin2yrs))
+
+```
+A look at the number of dedpendants per class. The apparent disparity is due to the classes being imbalanced.
+```{r, echo=TRUE, message=FALSE, warning=FALSE,plotly=TRUE,cache=FALSE, fig.align='center',results='markup'}
+
+ggplot(train, aes(NumberOfDependents,fill=factor(SeriousDlqin2yrs))) +
+  geom_bar(position="dodge")+coord_flip()
+```
+###Descriptive Statistics
+
+<code>Debt Ratio</code> for <cpde>No</code> cases are observed to be as high as 15K. What this means is that for these customers, debt payments are 15 times the gross income!! Even outside the context of default prediction, this is anomalous.
+
+```{r, echo=TRUE, message=FALSE, warning=FALSE,plotly=TRUE,cache=FALSE, fig.align='center',results='markup'}
+p1=ggplot(train,aes(x=factor(train$SeriousDlqin2yrs),y=DebtRatio))+geom_boxplot()
+ggplotly(p1)
+```
+<code>Revolving Utilization Of Unsecured Lines</code> has extreme values way above 1. This means the total balance on credit cards and other credit lines far exceed the sum of credit limits available. This is meaningless. The data for these records is corrupt or incorrect. Either way, the records cannot be used.
+``````{r, echo=TRUE, message=FALSE, warning=FALSE,plotly=TRUE,cache=FALSE, fig.align='center',results='markup'}
+p2=ggplot(train, aes(x=factor(train$SeriousDlqin2yrs),y=train$RevolvingUtilizationOfUnsecuredLines))+geom_boxplot()
+ggplotly(p2)
+```
+
+##Outlier Treatment & Data Preprocessing
+As per the above insights, the following changes to the data are done:
+* Imputing missing values for <Code>Number Of Dependants</code> with the mode.
+* Removing rows where the <Code>Debt Ratio</code> is greater than 100
+* Removing rows where the <code>Revolving Utilization Of Unsecured Lines</code> is greater than 3.0
+``````{r, echo=TRUE, message=FALSE, warning=FALSE,plotly=TRUE,cache=FALSE, fig.align='center',results='markup'}
+# Mode Imputation
+getmode <- function(v) {
+  uniqv <- unique(v)
+  uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+train$NumberOfDependents[is.na(train$NumberOfDependents)] <- getmode(train$NumberOfDependents)
+test$NumberOfDependents[is.na(test$NumberOfDependents)] <- getmode(test$NumberOfDependents)
+
+train$NumberOfDependents <- as.numeric(train$NumberOfDependents)
+test$NumberOfDependents <- as.numeric(test$NumberOfDependents)
+
+#outlier treatment-Revolving
+train1=subset(train,(train$RevolvingUtilizationOfUnsecuredLines<3))
+str(train1)
+ggplot(train1, aes(x=factor(train1$SeriousDlqin2yrs),y=train1$RevolvingUtilizationOfUnsecuredLines))+geom_boxplot()
+#outlier treatment - Debt ratio
+train2=subset(train1,(train1$DebtRatio<=100))
+#test=subset(test,(test$DebtRatio<=100))
+#str(train2)
+ggplot(train2,aes(x=factor(train2$SeriousDlqin2yrs),y=train2$DebtRatio))+geom_boxplot()
+
+# Now check missing values
+sapply(train, function(x) sum(is.na(x)))
+sapply(test, function(x) sum(is.na(x)))
+```
+
